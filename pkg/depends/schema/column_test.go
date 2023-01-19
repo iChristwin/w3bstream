@@ -17,7 +17,7 @@ func TestColumn_Ex(t *testing.T) {
 	ex := col.Ex(ctx)
 	NewWithT(t).Expect(ex.Query()).To(Equal("f_column"))
 
-	col.WithTable(schema.T("t_tab"))
+	col.WithTable(schema.MustT("t_tab"))
 	ex = col.Ex(builder.ContextWithToggleMultiTable(ctx, true))
 	NewWithT(t).Expect(ex.Query()).To(Equal("t_tab.f_column"))
 

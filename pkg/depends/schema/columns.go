@@ -11,11 +11,21 @@ import (
 	"github.com/machinefi/w3bstream/pkg/depends/x/misc/must"
 )
 
-func Cols(names ...string) *Columns {
+func Cols(names ...string) (*Columns, error) {
 	cs := &Columns{}
 
 	for _, name := range names {
-		cs.Add(Col(name))
+		if err := cs.Add(Col(name)); err != nil {
+			return nil, err
+		}
+	}
+	return cs, nil
+}
+
+func MustCols(names ...string) *Columns {
+	cs, err := Cols(names...)
+	if err != nil {
+		panic(err)
 	}
 	return cs
 }
@@ -64,7 +74,9 @@ func (cs *Columns) Cols(names ...string) (*Columns, error) {
 		if c == nil {
 			return nil, errors.Errorf("unknown column: %s", name)
 		}
-		cols.Add(c)
+		if err := cols.Add(c); err != nil {
+			return nil, err
+		}
 	}
 	return cols, nil
 }
@@ -77,7 +89,9 @@ func (cs *Columns) MustCols(names ...string) *Columns {
 
 func (cs *Columns) Clone() *Columns {
 	cloned := &Columns{}
-	cloned.Add(cs.lst...)
+	if err := cloned.Add(cs.lst...); err != nil {
+		panic(err)
+	}
 	return cloned
 }
 
@@ -88,7 +102,7 @@ func (cs *Columns) Len() int {
 	return len(cs.lst)
 }
 
-func (cs *Columns) Add(cols ...*Column) {
+func (cs *Columns) Add(cols ...*Column) error {
 	if cs.Map == nil {
 		cs.Map = mapx.New[string, *Column]()
 	}
@@ -99,10 +113,11 @@ func (cs *Columns) Add(cols ...*Column) {
 				cs.autoInc = c
 			}
 			if !cs.StoreNX(strings.ToLower(c.Name), c) {
-				panic(errors.Errorf("duplicated column: %s", c.Name))
+				return errors.Errorf("duplicated column: %s", c.Name)
 			}
 		}
 	}
+	return nil
 }
 
 func (cs *Columns) Range(f func(c *Column, idx int)) {

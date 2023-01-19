@@ -20,15 +20,27 @@ type TableDefinition interface {
 }
 
 // T is used to contribute a table structure
-func T(name string, defs ...TableDefinition) *Table {
+func T(name string, defs ...TableDefinition) (*Table, error) {
 	t := &Table{Name: name}
 	for _, def := range defs {
 		if c, ok := def.(*Column); ok {
-			t.AddCol(c)
+			if err := t.AddCol(c); err != nil {
+				return nil, err
+			}
 		}
 		if k, ok := def.(*Key); ok {
-			t.AddKey(k)
+			if err := t.AddKey(k); err != nil {
+				return nil, err
+			}
 		}
+	}
+	return t, nil
+}
+
+func MustT(name string, defs ...TableDefinition) *Table {
+	t, err := T(name, defs...)
+	if err != nil {
+		panic(err)
 	}
 	return t
 }
@@ -72,7 +84,9 @@ func (t *Table) Init() error {
 			},
 			WithTableDefinition: WithTableDefinition{t: t},
 		}
-		t.cols.Add(c)
+		if err := t.cols.Add(c); err != nil {
+			return err
+		}
 	}
 	for _, c := range t.Cols {
 		if c.Constrains.Default != nil {
@@ -80,8 +94,10 @@ func (t *Table) Init() error {
 		}
 	}
 
-	t.cols.Add(t.Cols...)
-	t.cols.Add(
+	if err := t.cols.Add(t.Cols...); err != nil {
+		return err
+	}
+	if err := t.cols.Add(
 		&Column{
 			Name: "f_created_at",
 			Constrains: &ColumnType{
@@ -98,9 +114,11 @@ func (t *Table) Init() error {
 			},
 			WithTableDefinition: WithTableDefinition{t: t},
 		},
-	)
+	); err != nil {
+		return err
+	}
 	if t.WithSoftDeletion {
-		t.cols.Add(
+		if err := t.cols.Add(
 			&Column{
 				Name: "f_deleted_at",
 				Constrains: &ColumnType{
@@ -109,10 +127,14 @@ func (t *Table) Init() error {
 				},
 				WithTableDefinition: WithTableDefinition{t: t},
 			},
-		)
+		); err != nil {
+			return err
+		}
 	}
 
-	t.keys.Add(t.Keys...)
+	if err := t.keys.Add(t.Keys...); err != nil {
+		return err
+	}
 
 	if t.WithSoftDeletion {
 		t.keys.Range(func(k *Key, idx int) {
@@ -130,18 +152,24 @@ func (t *Table) Init() error {
 	return nil
 }
 
-func (t *Table) AddKey(k *Key) {
+func (t *Table) AddKey(k *Key) error {
 	if k != nil {
-		t.keys.Add(k)
+		if err := t.keys.Add(k); err != nil {
+			return err
+		}
 		t.Keys = append(t.Keys, k)
 	}
+	return nil
 }
 
-func (t *Table) AddCol(c *Column) {
+func (t *Table) AddCol(c *Column) error {
 	if c != nil {
-		t.cols.Add(c)
+		if err := t.cols.Add(c); err != nil {
+			return err
+		}
 		t.Cols = append(t.Cols, c)
 	}
+	return nil
 }
 
 func (t *Table) CreateIfNotExists() []builder.SqlExpr {
@@ -171,7 +199,7 @@ func (t *Table) CreateIfNotExists() []builder.SqlExpr {
 				e.WriteQueryByte('\t')
 				e.WriteQuery("PRIMARY KEY ")
 				e.WriteGroup(func(e *builder.Ex) {
-					e.WriteExpr(Cols(k.IndexDef.ColumnNames...))
+					e.WriteExpr(MustCols(k.IndexDef.ColumnNames...))
 				})
 			}
 		})
@@ -196,7 +224,7 @@ func (t *Table) AddIndex(k *Key) builder.SqlExpr {
 		e.WriteExpr(k.t)
 		e.WriteQuery(" ADD PRIMARY KEY ")
 		e.WriteGroup(func(e *builder.Ex) {
-			e.WriteExpr(Cols(k.IndexDef.ColumnNames...))
+			e.WriteExpr(MustCols(k.IndexDef.ColumnNames...))
 		})
 		e.WriteEnd()
 		return e
@@ -219,7 +247,7 @@ func (t *Table) AddIndex(k *Key) builder.SqlExpr {
 	}
 	e.WriteQueryByte(' ')
 	e.WriteGroup(func(e *builder.Ex) {
-		e.WriteExpr(Cols(k.IndexDef.ColumnNames...))
+		e.WriteExpr(MustCols(k.IndexDef.ColumnNames...))
 	})
 	e.WriteEnd()
 	return e

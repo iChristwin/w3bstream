@@ -11,17 +11,23 @@ import (
 
 func TestColumns_Ex(t *testing.T) {
 	ctx := context.Background()
-	cs := schema.Cols("f_id", "f_name")
+
+	cs, err := schema.Cols("f_id", "f_name")
+	NewWithT(t).Expect(err).To(BeNil())
 
 	ex := cs.Ex(ctx)
 	NewWithT(t).Expect(ex.Query()).To(Equal("f_id,f_name"))
 }
 
 func TestColumns_AutoIncrement(t *testing.T) {
-	cs := schema.Cols()
+	cs, err := schema.Cols()
+	NewWithT(t).Expect(err).To(BeNil())
+
 	col := schema.Col("f_id")
 	col.Constrains.AutoIncrement = true
-	cs.Add(col)
+
+	err = cs.Add(col)
+	NewWithT(t).Expect(err).To(BeNil())
 
 	NewWithT(t).Expect(cs.AutoIncrement()).To(Equal(col))
 }

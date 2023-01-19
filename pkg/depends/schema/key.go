@@ -13,7 +13,7 @@ type Keys struct {
 	*mapx.Map[string, *Key]
 }
 
-func (ks *Keys) Add(keys ...*Key) {
+func (ks *Keys) Add(keys ...*Key) error {
 	if ks.Map == nil {
 		ks.Map = mapx.New[string, *Key]()
 	}
@@ -21,10 +21,11 @@ func (ks *Keys) Add(keys ...*Key) {
 		if k != nil {
 			ks.lst = append(ks.lst, k)
 			if !ks.StoreNX(strings.ToLower(k.Name), k) {
-				panic(errors.Errorf("duplicated key: %s", k.Name))
+				return errors.Errorf("duplicated key: %s", k.Name)
 			}
 		}
 	}
+	return nil
 }
 
 func (ks *Keys) Range(f func(k *Key, idx int)) {
